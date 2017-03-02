@@ -34,6 +34,8 @@ JNIEXPORT void JNICALL Java_com_example_cheng_cplusplustest_MainActivity_accessM
 
 JNIEXPORT void JNICALL Java_com_example_cheng_cplusplustest_MainActivity_accessStaticMethod
         (JNIEnv *, jobject);
+
+
 #ifdef __cplusplus
 }
 #endif
