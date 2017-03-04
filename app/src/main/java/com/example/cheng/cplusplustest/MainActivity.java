@@ -51,6 +51,32 @@ public class MainActivity extends AppCompatActivity {
         for (int i : array1) {
             Log.e("tag", "从jni中获取回来的数组i=" + i);
         }
+
+        Log.e("tag", "--------------2017/3/4 -----");
+        createGlobalRef();
+        Log.e("tag", "--2017/3/4 --getGlobalRef()---"+getGlobalRef());
+        //用完后释放
+        deleteGlobalRef();
+
+        try {
+            //jni里面的异常
+            exeception();
+        }catch (Exception e){
+            Log.e("tag", "---2017/3/4 --发生异常");
+        }
+        Log.e("tag", "---2017/3/4 -------发生异常之后----------");
+        try {
+            //jni里面的异常
+            exeception();
+        }catch (Exception e){
+            Log.e("tag", "---2017/3/4 --发生异常");
+        }
+
+        //不断调用cacked方法
+        for (int i = 0; i < 100; i++) {
+            cached();
+        }
+
     }
 
     //产生指定范围随机数
@@ -93,8 +119,23 @@ public class MainActivity extends AppCompatActivity {
 
     public native void localRef();
 
+    public native void createGlobalRef();
+
+    public native String getGlobalRef();
+
+    public native void deleteGlobalRef();
+
+    public native void exeception();
+
+    public native static void initIds();
+
+
+
+    public native void cached();
     // Used to load the 'native-lib' library on application startup.
     static {
         System.loadLibrary("native-lib");
+
+        initIds();
     }
 }

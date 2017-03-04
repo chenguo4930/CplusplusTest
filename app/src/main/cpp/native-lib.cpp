@@ -244,14 +244,14 @@ extern "C" jintArray Java_com_example_cheng_cplusplustest_MainActivity_getArray
 
     //创建一个指定大小的数组
     jintArray jint_arr = env->NewIntArray(len);
-    jint *elems = env->GetIntArrayElements(jint_arr,NULL);
+    jint *elems = env->GetIntArrayElements(jint_arr, NULL);
     int i = 0;
     for (; i < len; ++i) {
         elems[i] = i;
     }
 
     //同步
-    env->ReleaseIntArrayElements(jint_arr,elems, 0);
+    env->ReleaseIntArrayElements(jint_arr, elems, 0);
     return jint_arr;
 }
 
@@ -259,10 +259,126 @@ extern "C" jintArray Java_com_example_cheng_cplusplustest_MainActivity_getArray
 //引用类型:局部引用和全局引用
 //作用：在JNI中告知虚拟机何时回收一个JNI变量
 
+//局部引用，通过DeleteLocalRef手动释放对象
+//1、访问一个很大的java对象，还要进行耗时操作
+//2、创建了大量的局部引用占用了太多的内存，而且这些局部引用跟后面的使用没有关联性
+
+
+//模拟：循环创建数组
 extern "C" jintArray Java_com_example_cheng_cplusplustest_MainActivity_localRef
         (JNIEnv *env, jobject jobj) {
+    for (int i = 0; i < 5; ++i) {
+        //创建Date对象
+        jclass cls = env->FindClass("java/util/Date");
+        jmethodID constructor_mid = env->GetMethodID(cls, "<init>", "()V");
+        jobject obj = env->NewObject(cls, constructor_mid);
+
+        //此处胜率100万行
+
+        //通知垃圾回收器回收这些对象
+        env->DeleteLocalRef(obj);
+
+        //此处神雕1万行
+
+
+    }
+}
+
+//全局引用，多个方法里面都可以使用
+//共享，手动控制内存使用
+jstring global_str;
+
+extern "C" void Java_com_example_cheng_cplusplustest_MainActivity_createGlobalRef
+        (JNIEnv *env, jobject jobj) {
+    jstring obj = env->NewStringUTF("jni developmen is powerfal");
+    global_str = (jstring) env->NewGlobalRef(obj);
+}
+
+extern "C" jstring Java_com_example_cheng_cplusplustest_MainActivity_getGlobalRef
+        (JNIEnv *env, jobject jobj) {
+    return global_str;
+}
+
+extern "C" void Java_com_example_cheng_cplusplustest_MainActivity_deleteGlobalRef
+        (JNIEnv *env, jobject jobj) {
+    env->DeleteGlobalRef(global_str);
+}
+
+//弱引用
+//节省内存，在内存不足时可以是释放所引用的的对象
+//可以引用一个不常用的对象，如果为NULL， 临时创建
+//创建：newWeakGlobalRef,销毁：DeleteGlobalWeakRef
+
+//异常处理
+//1.保证Java代码可以运行
+//2.补救措施保证C代码继续运行
+
+//JNI自己抛出的异常，在Java层无法被捕捉，只能在C层清空
+//用户通过ThrowNew抛出的异常，可以在Java层捕捉
+extern "C" void Java_com_example_cheng_cplusplustest_MainActivity_exeception
+        (JNIEnv *env, jobject jobj) {
+    jclass cls = env->GetObjectClass(jobj);
+    jfieldID fid = env->GetFieldID(cls, "key2", "Ljava/lang/String;");
+    //检测key2这个属性是否有问题
+    //检测是否发生Java异常
+    jthrowable exception = env->ExceptionOccurred();
+    if (exception != NULL) {
+        //发生异常，亲空异常，保证让java代码继续运行
+        env->ExceptionClear();
+
+        //补救措施
+        fid = env->GetFieldID(cls, "key", "Ljava/lang/String;");
+    }
+    //获取属性的值
+    jstring jstr = (jstring) env->GetObjectField(jobj, fid);
+    char *str = (char *) env->GetStringUTFChars(jstr, NULL);
+
+    //对比属性值是否合法
+    if (strcmp(str, "super guo sheng") != 0) {
+        //以为抛出异常，给Java层处理
+        jclass newExcCls = env->FindClass("java/lang/IllegalArgumentException");
+        env->ThrowNew(newExcCls, "key's values is invalid！");
+    }
+}
+
+//缓存策略
+extern "C" void
+Java_com_example_cheng_cplusplustest_MainActivity_cached(JNIEnv *env, jobject jobj) {
+    jclass cls = env->GetObjectClass(jobj);
+    //获取jfieldId值获取一次
+    //局部静态变量：只能在这个方法里面使用，但是它从这个方法调用之后，一直存储在内存中
+    static jfieldID key_id = NULL;
+    if (key_id == NULL) {
+        key_id = env->GetFieldID(cls, "key", "Ljava/lang/String;");
+        LOGW("获取GetFieldId");
+    }
 
 }
+
+//初始化全局变量，动态库加载完成之后，立即缓存起来
+jfieldID key_fid;
+jmethodID random_mid;
+extern "C" void
+Java_com_example_cheng_cplusplustest_MainActivity_initIds(JNIEnv *env, jobject jobj) {
+    jclass cls = env->GetObjectClass(jobj);
+    key_fid = env->GetFieldID(cls, "key", "Ljava/lang/String;");
+    random_mid = env->GetMethodID(cls, "getRandomInt", "(I)I");
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
